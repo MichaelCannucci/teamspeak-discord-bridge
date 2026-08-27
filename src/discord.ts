@@ -24,7 +24,7 @@ import {
   type VoiceBasedChannel,
   type Snowflake,
 } from 'discord.js';
-import { prism } from 'prism-media';
+import { opus as prismOpus } from 'prism-media';
 import { Readable, type ReadableOptions } from 'node:stream';
 import type { TsAudioLink } from './audio.js';
 
@@ -49,7 +49,7 @@ export class DiscordBridge {
   private connection?: VoiceConnection;
   private player: AudioPlayer;
   private tsStream = new PcmPushable();
-  private opusEncoder = new prism.opus.Encoder({ rate: 48000, channels: 2, frameSize: 960 });
+  private opusEncoder = new prismOpus.Encoder({ rate: 48000, channels: 2, frameSize: 960 });
 
   constructor(
     private readonly token: string,
@@ -142,13 +142,13 @@ export class DiscordBridge {
       autoDestroy: true,
     });
 
-    const opusDecoder = new prism.opus.Decoder({ rate: 48000, channels: 2, frameSize: 960 });
+    const opusDecoder = new prismOpus.Decoder({ rate: 48000, channels: 2, frameSize: 960 });
     audio.pipe(opusDecoder);
 
     opusDecoder.on('data', (pcm: Buffer) => {
       this.ts.writeFromDiscord(pcm);
     });
-    opusDecoder.on('error', (e) =>
+    opusDecoder.on('error', (e: Error) =>
       console.error(`[discord] decode error for ${userId}:`, e.message));
   }
 

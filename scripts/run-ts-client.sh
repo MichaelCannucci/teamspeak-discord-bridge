@@ -15,10 +15,18 @@ if ! xdpyinfo -display "${DISPLAY_NUM}" >/dev/null 2>&1; then
 fi
 
 # Optional: x11vnc so you can control the client remotely for initial setup
-if [[ "${TS_VNC:-1}" == "1" ]] && ! pgrep -x x11vnc >/dev/null; then
-  echo "Starting x11vnc on port ${TS_VNC_PORT:-5900}"
-  x11vnc -display "${DISPLAY_NUM}" -rfbport "${TS_VNC_PORT:-5900}" \
-    -nopw -shared -forever -bg -quiet || true
+if [[ "${TS_VNC:-1}" == "1" ]]; then
+  if ! command -v x11vnc >/dev/null 2>&1; then
+    echo "WARNING: x11vnc is not installed (sudo apt install x11vnc) - skipping VNC" >&2
+  elif pgrep -x x11vnc >/dev/null; then
+    echo "x11vnc already running"
+  else
+    echo "Starting x11vnc on port ${TS_VNC_PORT:-5900}"
+    if ! x11vnc -display "${DISPLAY_NUM}" -rfbport "${TS_VNC_PORT:-5900}" \
+      -nopw -shared -forever -bg -quiet; then
+      echo "WARNING: x11vnc failed to start" >&2
+    fi
+  fi
 fi
 
 export DISPLAY="${DISPLAY_NUM}"

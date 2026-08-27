@@ -14,8 +14,15 @@
  * PulseAudio native protocol for us. Raw PCM (s16le, 48kHz, stereo) is piped
  * over stdin/stdout of those processes.
  */
-import { spawn, type ChildProcessWithoutNullStreams } from 'node:child_process';
+import { spawn, type ChildProcessByStdio } from 'node:child_process';
+import type { Readable } from 'node:stream';
 import { EventEmitter } from 'node:events';
+
+/** Recorder: stdout/stderr piped, stdin ignored. */
+type Recorder = ChildProcessByStdio<null, Readable, Readable>;
+/** Player: stdin piped, stdout ignored, stderr piped. */
+type Player = ChildProcessByStdio<Writable, null, Readable>;
+import type { Writable } from 'node:stream';
 
 export interface AudioOptions {
   sinkName: string;      // e.g. "ts-bridge-out"
@@ -27,8 +34,8 @@ export interface AudioOptions {
 const FRAME_BYTES = 3840; // 20ms of s16le 48kHz stereo (960 samples * 2ch * 2B)
 
 export class TsAudioLink extends EventEmitter {
-  private recorder?: ChildProcessWithoutNullStreams;
-  private player?: ChildProcessWithoutNullStreams;
+  private recorder?: Recorder;
+  private player?: Player;
   private readonly opts: AudioOptions;
   private buffer = Buffer.alloc(0);
 
@@ -41,15 +48,16 @@ export class TsAudioLink extends EventEmitter {
   startCapture(): void {
     const monitor = `${this.opts.sinkName}.monitor`;
     // pw-record / parec both accept the same args via pipewire-pulse
-    this.recorder = spawn('pw-record', [
+    const recorder = spawn('pw-record', [
       '--rate', String(this.opts.sampleRate),
       '--channels', String(this.opts.channels),
       '--format', 's16',
       `--target`, monitor,
       '-',
-    ], { stdio: ['ignore', 'pipe', 'pipe'] });
+    ], { stdio: ['ignore', 'pipe', 'pipe'] }) as Recorder;
+    this.recorder = recorder;
 
-    this.recorder.stdout.on('data', (chunk: Buffer) => {
+    recorder.stdout.on('data', (chunk: Buffer) => {
       this.buffer = Buffer.concat([this.buffer, chunk]);
       while (this.buffer.length >= FRAME_BYTES) {
         const frame = this.buffer.subarray(0, FRAME_BYTES);
@@ -58,9 +66,9 @@ export class TsAudioLink extends EventEmitter {
       }
     });
 
-    this.recorder.on('error', (err) =>
+    recorder.on('error', (err) =>
       this.emit('error', new Error(`pw-record failed: ${err.message}`)));
-    this.recorder.stderr.on('data', (d: Buffer) => {
+    recorder.stderr.on('data', (d: Buffer) => {
       const s = d.toString().trim();
       if (s) this.emit('log', `[pw-record] ${s}`);
     });
@@ -68,17 +76,18 @@ export class TsAudioLink extends EventEmitter {
 
   /** Start the playback pipe into the TS6 client's virtual microphone. */
   startPlayback(): void {
-    this.player = spawn('pw-play', [
+    const player = spawn('pw-play', [
       '--rate', String(this.opts.sampleRate),
       '--channels', String(this.opts.channels),
       '--format', 's16',
       `--target`, this.opts.sourceName,
       '-',
-    ], { stdio: ['pipe', 'ignore', 'pipe'] });
+    ], { stdio: ['pipe', 'ignore', 'pipe'] }) as Player;
+    this.player = player;
 
-    this.player.on('error', (err) =>
+    player.on('error', (err) =>
       this.emit('error', new Error(`pw-play failed: ${err.message}`)));
-    this.player.stderr.on('data', (d: Buffer) => {
+    player.stderr.on('data', (d: Buffer) => {
       const s = d.toString().trim();
       if (s) this.emit('log', `[pw-play] ${s}`);
     });
