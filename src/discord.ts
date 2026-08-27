@@ -22,6 +22,7 @@ import {
   Events,
   GatewayIntentBits,
   Partials,
+  PermissionFlagsBits,
   type VoiceBasedChannel,
   type Snowflake,
 } from 'discord.js';
@@ -114,6 +115,32 @@ export class DiscordBridge {
       throw new Error(`Channel ${this.voiceChannelId} is not a voice channel`);
     }
 
+    // --- Permission pre-checks ---
+    const me = channel.guild.members.me;
+    if (!me) {
+      throw new Error(
+        'Bot member not found in guild. Ensure the bot has been invited with the\n' +
+        '  \"applications.commands\" and \"bot\" scopes, and that \"Server Members Intent\"\n' +
+        '  is enabled in the Discord Developer Portal.',
+      );
+    }
+    const perms = channel.permissionsFor(me);
+    if (!perms) {
+      throw new Error(`Cannot read permissions for channel ${channel.id}.`);
+    }
+    const missing: string[] = [];
+    if (!perms.has(PermissionFlagsBits.Connect)) missing.push('Connect');
+    if (!perms.has(PermissionFlagsBits.Speak)) missing.push('Speak');
+    if (!perms.has(PermissionFlagsBits.UseVAD)) missing.push('Use VAD');
+    if (missing.length) {
+      throw new Error(
+        `Bot is missing required permissions in #${channel.name}: ${missing.join(', ')}\n` +
+        `  -> Go to Server Settings > Roles > Bot Role > Permissions\n` +
+        `  -> Or channel settings > Permissions > add the bot role with these grants.`,
+      );
+    }
+    console.log(`[discord] permissions OK for #${channel.name} — joining...`);
+
     this.connection = joinVoiceChannel({
       channelId: channel.id,
       guildId: channel.guild.id,
@@ -142,9 +169,14 @@ export class DiscordBridge {
     try {
       await entersState(this.connection, VoiceConnectionStatus.Ready, 30_000);
     } catch (err) {
-      console.error('[discord] voice failed to become Ready within 30s.');
-      console.error('  -> Check that UDP ports 50000-65535 are open (ufw + cloud firewall).');
-      console.error('  -> Discord voice requires outbound UDP; TCP-only firewalls will fail here.');
+      const state = this.connection.state.status;
+      console.error(`[discord] voice failed to become Ready (current state: ${state}) within 30s.`);
+      console.error('  Possible causes:');
+      console.error('    1. UDP ports 50000-65535 not open — check ufw + cloud firewall');
+      console.error('    2. Discord voice requires outbound UDP; TCP-only firewalls will fail');
+      console.error('    3. Bot lacks Connect/Speak permissions in the voice channel');
+      console.error('    4. Voice channel is in a category the bot cannot access');
+      console.error('  Debug: run `npx @discordjs/voice@latest inspect` or test with a simple bot');
       throw err;
     }
     console.log('[discord] voice connection ready');
