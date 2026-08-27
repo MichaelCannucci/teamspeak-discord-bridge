@@ -90,18 +90,14 @@ export class DiscordBridge {
     });
 
     this.client.on('voiceStateUpdate', (_old, newState) => {
-      // Re-subscribe when someone (re)connects or starts speaking
-      if (newState.guild.id === this.guildId && newState.channelId) {
+      // Re-subscribe when someone (re)connects or starts speaking.
+      // Never subscribe to the bot itself — that would create an audio loop.
+      if (
+        newState.guild.id === this.guildId &&
+        newState.channelId &&
+        newState.id !== this.client.user?.id
+      ) {
         this.subscribeToSpeaker(newState.id);
-      }
-    });
-
-    // Debug: count incoming TS frames so we can see audio flowing
-    let frameCount = 0;
-    this.ts.on('tsAudio', () => {
-      frameCount++;
-      if (frameCount % 50 === 0) {
-        console.log(`[bridge] received ${frameCount} TS audio frames (~${(frameCount * 20 / 1000).toFixed(0)}s)`);
       }
     });
 

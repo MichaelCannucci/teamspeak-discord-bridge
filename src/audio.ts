@@ -44,15 +44,19 @@ export class TsAudioLink extends EventEmitter {
     this.opts = opts;
   }
 
-  /** Start capturing the TS6 client's playback (what TS users say). */
+  /** Start capturing the TS6 client's playback (what TS users say).
+   *
+   * Uses `parec` (PulseAudio protocol) with an explicit monitor source name —
+   * unlike pw-record's --target, parec's device argument reliably binds to the
+   * exact requested source and never silently falls back to another one. */
   startCapture(): void {
     const monitor = `${this.opts.sinkName}.monitor`;
-    // pw-record / parec both accept the same args via pipewire-pulse
-    const recorder = spawn('pw-record', [
+    const recorder = spawn('parec', [
+      '-d', monitor,
       '--rate', String(this.opts.sampleRate),
       '--channels', String(this.opts.channels),
       '--format', 's16',
-      `--target`, monitor,
+      '--raw',
       '-',
     ], { stdio: ['ignore', 'pipe', 'pipe'] }) as Recorder;
     this.recorder = recorder;
@@ -81,17 +85,19 @@ export class TsAudioLink extends EventEmitter {
    * the TS6 client uses as its microphone. pw-play cannot write into a source
    * directly — it must target the sink. */
   startPlayback(): void {
-    const player = spawn('pw-play', [
+    const player = spawn('pacat', [
+      '--playback',
+      '-d', `${this.opts.sourceName}-sink`,
       '--rate', String(this.opts.sampleRate),
       '--channels', String(this.opts.channels),
       '--format', 's16',
-      '--target', `${this.opts.sourceName}-sink`,
+      '--raw',
       '-',
     ], { stdio: ['pipe', 'ignore', 'pipe'] }) as Player;
     this.player = player;
 
     player.on('error', (err) =>
-      this.emit('error', new Error(`pw-play failed: ${err.message}`)));
+      this.emit('error', new Error(`pacat failed: ${err.message}`)));
     player.stderr.on('data', (d: Buffer) => {
       const s = d.toString().trim();
       if (s) this.emit('log', `[pw-play] ${s}`);
