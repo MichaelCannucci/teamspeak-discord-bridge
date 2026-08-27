@@ -68,6 +68,9 @@ export class DiscordBridge {
       ],
       partials: [Partials.Channel],
     });
+    this.client.on('debug', (msg) => {
+      console.debug(msg)
+    })
     this.player = createAudioPlayer({
       behaviors: { noSubscriber: NoSubscriberBehavior.Play },
     });
