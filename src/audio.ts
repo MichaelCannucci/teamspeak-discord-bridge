@@ -74,13 +74,18 @@ export class TsAudioLink extends EventEmitter {
     });
   }
 
-  /** Start the playback pipe into the TS6 client's virtual microphone. */
+  /** Start the playback pipe into the TS6 client's virtual microphone.
+   *
+   * We play into the null-sink `ts-bridge-in-sink`; setup-audio.sh creates a
+   * remap-source (`ts-bridge-in`) backed by that sink's monitor, which is what
+   * the TS6 client uses as its microphone. pw-play cannot write into a source
+   * directly — it must target the sink. */
   startPlayback(): void {
     const player = spawn('pw-play', [
       '--rate', String(this.opts.sampleRate),
       '--channels', String(this.opts.channels),
       '--format', 's16',
-      `--target`, this.opts.sourceName,
+      '--target', `${this.opts.sourceName}-sink`,
       '-',
     ], { stdio: ['pipe', 'ignore', 'pipe'] }) as Player;
     this.player = player;

@@ -92,17 +92,13 @@ export class DiscordBridge {
       }
     });
 
-    // TS -> Discord: encode PCM from the TS link and play it
-    this.ts.on('tsAudio', (pcm: Buffer) => {
-      const opus = this.opusEncoder.encoder.encode(pcm) as Buffer;
-      const stream = new PcmPushable();
-      stream.pushPcm(opus);
-      const resource = createAudioResource(stream, {
-        inputType: 'opus' as never, // raw opus frames
-        inlineVolume: false,
-      });
-      // We must keep a single continuous resource; instead of per-frame
-      // resources, route through a persistent stream (see startTsPlayback).
+    // Debug: count incoming TS frames so we can see audio flowing
+    let frameCount = 0;
+    this.ts.on('tsAudio', () => {
+      frameCount++;
+      if (frameCount % 50 === 0) {
+        console.log(`[bridge] received ${frameCount} TS audio frames (~${(frameCount * 20 / 1000).toFixed(0)}s)`);
+      }
     });
 
     await this.client.login(this.token);
