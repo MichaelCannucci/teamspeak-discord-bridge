@@ -81,7 +81,12 @@ export class DiscordBridge {
         console.error('[discord] failed to join voice:', err);
       }
     });
-
+    this.client.on('debug', (msg) => {
+      console.debug(msg)
+    });
+    this.client.on('warn', (msg) => {
+      console.warn(msg)
+    })
     this.client.on('error', (err) => {
       console.error('[discord] client error:', err);
     });
