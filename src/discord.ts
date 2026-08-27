@@ -151,6 +151,11 @@ export class DiscordBridge {
 
     this.connection.on('error', (e) => console.error('[discord] voice error:', e));
 
+    // Log every voice connection state transition
+    this.connection.on('stateChange', (_oldState, newState) => {
+      console.log(`[discord] voice state: ${newState.status}`);
+    });
+
     this.connection.on(VoiceConnectionStatus.Destroyed, () => {
       console.log('[discord] voice connection destroyed');
     });
