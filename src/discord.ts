@@ -114,7 +114,26 @@ export class DiscordBridge {
     });
 
     this.connection.on('error', (e) => console.error('[discord] voice error:', e));
-    await entersState(this.connection, VoiceConnectionStatus.Ready, 30_000);
+
+    // If the connection drops (network blip, channel move), try to reconnect.
+    this.connection.on(VoiceConnectionStatus.Disconnected, async () => {
+      try {
+        await entersState(this.connection!, VoiceConnectionStatus.Signalling, 5_000);
+        // re-signalled (e.g. moved channels) — nothing to do
+      } catch {
+        console.warn('[discord] voice disconnected, attempting reconnect...');
+        this.connection?.rejoin();
+      }
+    });
+
+    try {
+      await entersState(this.connection, VoiceConnectionStatus.Ready, 30_000);
+    } catch (err) {
+      console.error('[discord] voice failed to become Ready within 30s.');
+      console.error('  -> Check that UDP ports 50000-65535 are open (ufw + cloud firewall).');
+      console.error('  -> Discord voice requires outbound UDP; TCP-only firewalls will fail here.');
+      throw err;
+    }
     console.log('[discord] voice connection ready');
 
     this.connection.subscribe(this.player);

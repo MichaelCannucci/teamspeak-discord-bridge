@@ -12,6 +12,11 @@ function requireEnv(name: string): string {
 }
 
 async function main(): Promise<void> {
+  // Don't let stray async errors (e.g. voice connection timeouts) kill the process
+  process.on('unhandledRejection', (err) => {
+    console.error('[bridge] unhandled rejection:', err);
+  });
+
   const token = requireEnv('DISCORD_TOKEN');
   const guildId = requireEnv('DISCORD_GUILD_ID');
   const voiceChannelId = requireEnv('DISCORD_VOICE_CHANNEL_ID');

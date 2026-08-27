@@ -20,7 +20,7 @@ TS6 server ◀──WebRTC──▶ TS6 client (Xvfb, on server)
 - Linux server (tested target: Debian/Ubuntu with PipeWire)
 - Node.js ≥ 20
 - TS6 client installed (`~/.local/share/TeamSpeak/Client/TeamSpeak`)
-- Packages: `pipewire pipewire-pulse pulseaudio-utils xvfb x11vnc`
+- Packages: `pipewire pipewire-pulse pulseaudio-utils xvfb x11vnc` and `build-essential` (For Ubuntu)
 - A Discord bot with the **Server Members** + **Voice States** intents enabled
 
 ## Setup
