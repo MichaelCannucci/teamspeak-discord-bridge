@@ -1,6 +1,10 @@
 import 'dotenv/config';
+import dns from 'node:dns';
 import { TsAudioLink } from './audio.js';
 import { DiscordBridge } from './discord.js';
+
+// Prefer IPv4 — broken/preferred IPv6 causes Discord voice UDP handshakes to hang
+dns.setDefaultResultOrder('ipv4first');
 
 function requireEnv(name: string): string {
   const v = process.env[name];
