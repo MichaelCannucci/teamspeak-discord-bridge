@@ -12,6 +12,7 @@ import {
   createAudioPlayer,
   createAudioResource,
   NoSubscriberBehavior,
+  StreamType,
   VoiceConnectionStatus,
   entersState,
   type VoiceConnection,
@@ -186,11 +187,11 @@ export class DiscordBridge {
     this.subscribeAllSpeakers(channel);
   }
 
-  /** Persistent TS->Discord audio: encode the pushable PCM stream to Opus. */
+  /** Persistent TS->Discord audio: feed raw PCM; @discordjs/voice adds its own
+   * Opus encoder for StreamType.Raw (s16le 48kHz stereo). */
   private startTsPlayback(): void {
-    const opusStream = this.tsStream.pipe(this.opusEncoder);
-    const resource = createAudioResource(opusStream, {
-      inputType: 'arbitrary' as never,
+    const resource = createAudioResource(this.tsStream, {
+      inputType: StreamType.Raw,
       inlineVolume: false,
     });
     this.player.play(resource);
