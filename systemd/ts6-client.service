@@ -1,0 +1,14 @@
+[Unit]
+Description=TeamSpeak 6 client for Discord bridge (virtual display)
+After=graphical-session.target pipewire.service pipewire-pulse.service
+
+[Service]
+Type=simple
+ExecStart=%h/Projects/teamspeak-discord-bridge/scripts/run-ts-client.sh
+Environment=TS_DISPLAY=:99
+Environment=TS_VNC=1
+Restart=on-failure
+RestartSec=10
+
+[Install]
+WantedBy=default.target
