@@ -147,6 +147,7 @@ export class DiscordBridge {
       adapterCreator: channel.guild.voiceAdapterCreator,
       selfDeaf: false,
       selfMute: false,
+      debug: true
     });
 
     this.connection.on('error', (e) => console.error('[discord] voice error:', e));
