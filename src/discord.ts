@@ -19,6 +19,7 @@ import {
 } from '@discordjs/voice';
 import {
   Client,
+  Events,
   GatewayIntentBits,
   Partials,
   type VoiceBasedChannel,
@@ -71,9 +72,17 @@ export class DiscordBridge {
   }
 
   async start(): Promise<void> {
-    this.client.once('ready', async (c) => {
+    this.client.once(Events.ClientReady, async (c) => {
       console.log(`[discord] logged in as ${c.user.tag}`);
-      await this.joinVoice();
+      try {
+        await this.joinVoice();
+      } catch (err) {
+        console.error('[discord] failed to join voice:', err);
+      }
+    });
+
+    this.client.on('error', (err) => {
+      console.error('[discord] client error:', err);
     });
 
     this.client.on('voiceStateUpdate', (_old, newState) => {
@@ -114,6 +123,10 @@ export class DiscordBridge {
     });
 
     this.connection.on('error', (e) => console.error('[discord] voice error:', e));
+
+    this.connection.on(VoiceConnectionStatus.Destroyed, () => {
+      console.log('[discord] voice connection destroyed');
+    });
 
     // If the connection drops (network blip, channel move), try to reconnect.
     this.connection.on(VoiceConnectionStatus.Disconnected, async () => {
