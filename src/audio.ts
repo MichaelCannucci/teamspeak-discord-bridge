@@ -14,7 +14,7 @@
  * PulseAudio native protocol for us. Raw PCM (s16le, 48kHz, stereo) is piped
  * over stdin/stdout of those processes.
  */
-import { spawn, type ChildProcessByStdio } from 'node:child_process';
+import { spawn, execSync, type ChildProcessByStdio } from 'node:child_process';
 import type { Readable } from 'node:stream';
 import { EventEmitter } from 'node:events';
 
@@ -42,6 +42,18 @@ export class TsAudioLink extends EventEmitter {
   constructor(opts: AudioOptions) {
     super();
     this.opts = opts;
+    this.killOrphans();
+  }
+
+  /** Kill parec/pacat orphans left behind by previous bot runs. */
+  private killOrphans(): void {
+    for (const proc of ['parec', 'pacat']) {
+      try {
+        execSync(`pkill -f "${proc}" 2>/dev/null`, { shell: '/bin/bash' });
+      } catch {
+        // pkill exits non-zero when nothing matched — that's fine
+      }
+    }
   }
 
   /** Start capturing the TS6 client's playback (what TS users say).
@@ -50,6 +62,8 @@ export class TsAudioLink extends EventEmitter {
    * unlike pw-record's --target, parec's device argument reliably binds to the
    * exact requested source and never silently falls back to another one. */
   startCapture(): void {
+    // Guard against duplicate recorders from repeated starts / stale processes
+    if (this.recorder && !this.recorder.killed) return;
     const monitor = `${this.opts.sinkName}.monitor`;
     const recorder = spawn('parec', [
       '-d', monitor,
@@ -85,6 +99,7 @@ export class TsAudioLink extends EventEmitter {
    * the TS6 client uses as its microphone. pw-play cannot write into a source
    * directly — it must target the sink. */
   startPlayback(): void {
+    if (this.player && !this.player.killed) return;
     this.spawnPlayer();
   }
 
