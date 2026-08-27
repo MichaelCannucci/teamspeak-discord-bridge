@@ -74,7 +74,7 @@ export class TsAudioLink extends EventEmitter {
       this.emit('error', new Error(`pw-record failed: ${err.message}`)));
     recorder.stderr.on('data', (d: Buffer) => {
       const s = d.toString().trim();
-      if (s) this.emit('log', `[pw-record] ${s}`);
+      if (s) this.emit('log', `[parec] ${s}`);
     });
   }
 
@@ -85,6 +85,11 @@ export class TsAudioLink extends EventEmitter {
    * the TS6 client uses as its microphone. pw-play cannot write into a source
    * directly — it must target the sink. */
   startPlayback(): void {
+    this.spawnPlayer();
+  }
+
+  /** Spawn (or re-spawn) the pacat process feeding the TS mic sink. */
+  private spawnPlayer(): void {
     const player = spawn('pacat', [
       '--playback',
       '-d', `${this.opts.sourceName}-sink`,
@@ -98,9 +103,19 @@ export class TsAudioLink extends EventEmitter {
 
     player.on('error', (err) =>
       this.emit('error', new Error(`pacat failed: ${err.message}`)));
+
+    player.on('exit', (code) => {
+      // pacat exits on stdin EOF; respawn so future Discord audio still plays.
+      this.emit('log', `[pacat] exited (code ${code}), respawning`);
+      this.player = undefined;
+      setTimeout(() => {
+        if (!this.player) this.spawnPlayer();
+      }, 500);
+    });
+
     player.stderr.on('data', (d: Buffer) => {
       const s = d.toString().trim();
-      if (s) this.emit('log', `[pw-play] ${s}`);
+      if (s) this.emit('log', `[pacat] ${s}`);
     });
   }
 
