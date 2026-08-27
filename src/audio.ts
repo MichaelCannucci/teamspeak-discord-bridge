@@ -104,6 +104,9 @@ export class TsAudioLink extends EventEmitter {
     player.on('error', (err) =>
       this.emit('error', new Error(`pacat failed: ${err.message}`)));
 
+    // Swallow EPIPE on stdin so a dying pacat can never crash the bot
+    player.stdin.on('error', () => {});
+
     player.on('exit', (code) => {
       // pacat exits on stdin EOF; respawn so future Discord audio still plays.
       this.emit('log', `[pacat] exited (code ${code}), respawning`);
@@ -121,8 +124,13 @@ export class TsAudioLink extends EventEmitter {
 
   /** Feed Discord audio (PCM s16le 48kHz stereo) into the TS mic. */
   writeFromDiscord(pcm: Buffer): void {
-    if (this.player && this.player.stdin.writable) {
-      this.player.stdin.write(pcm);
+    const player = this.player;
+    if (!player || !player.stdin.writable) return;
+    try {
+      player.stdin.write(pcm);
+    } catch {
+      // EPIPE race: pacat died between the writable check and this write.
+      // The 'exit' handler will respawn; drop this frame.
     }
   }
 
