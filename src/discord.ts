@@ -81,12 +81,6 @@ export class DiscordBridge {
         console.error('[discord] failed to join voice:', err);
       }
     });
-    this.client.on('debug', (msg) => {
-      console.debug(msg)
-    });
-    this.client.on('warn', (msg) => {
-      console.warn(msg)
-    })
     this.client.on('error', (err) => {
       console.error('[discord] client error:', err);
     });
@@ -151,8 +145,7 @@ export class DiscordBridge {
       guildId: channel.guild.id,
       adapterCreator: channel.guild.voiceAdapterCreator,
       selfDeaf: false,
-      selfMute: false,
-      debug: true
+      selfMute: false
     });
 
     this.connection.on('error', (e) => console.error('[discord] voice error:', e));
