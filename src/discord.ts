@@ -85,7 +85,7 @@ export class DiscordBridge {
 
     // TS -> Discord: encode PCM from the TS link and play it
     this.ts.on('tsAudio', (pcm: Buffer) => {
-      const opus = this.opusEncoder.encode(pcm);
+      const opus = this.opusEncoder.encoder.encode(pcm) as Buffer;
       const stream = new PcmPushable();
       stream.pushPcm(opus);
       const resource = createAudioResource(stream, {
